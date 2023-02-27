@@ -23,6 +23,8 @@ Plugin_Base :: struct {
     // on_main_thread
 
     // extension interfaces...
+    clap_audio_ports_ext: *Audio_Ports = null;
+    clap_params_ext: *Params = null;
 }
 
 from_raw_clap_plugin :: (plugin: *clap_plugin_t) -> *Plugin_Type #c_call {
@@ -82,7 +84,7 @@ plugin_destroy :: (plugin: *clap_plugin_t) -> void #c_call {
 plugin_activate :: (plugin: *clap_plugin_t, sample_rate: float64, min_frames_count: u32, max_frames_count: u32) -> bool #c_call {
     using self := from_raw_clap_plugin(plugin);
     push_context plugin_context {
-        log("Initializing plugin with sample rate %, and max block size %\n", sample_rate, max_frames_count);
+        log("Activating plugin with sample rate %, and max block size %\n", sample_rate, max_frames_count);
         activate(self, sample_rate, max_frames_count);
     }
 
@@ -128,9 +130,8 @@ plugin_reset :: (plugin: *clap_plugin_t) -> void #c_call {
 }
 
 plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_process_status #c_call {
-    /*
-    self := plugin_from_self(plugin);
-    push_context self.audio_thread_context {
+    using self := from_raw_clap_plugin(plugin);
+    push_context audio_thread_ctx.ctx {
         context.allocator = temp;
 
         {
@@ -153,9 +154,23 @@ plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_pro
                           next_event_time: *u32,
                           num_events: u32,
                           num_samples: u32,
-                          sample_offset: u32) {
+                          sample_offset: u32,
+                          params: *Param_Holder) {
             event := events.get(events, (<<current_event_index));
-            // process_clap_event...
+
+            if event.type == CLAP_EVENT_PARAM_VALUE {
+                param_event := cast(*clap_event_param_value_t) event;
+                param: *Param_Base;
+                if param_event.cookie != null {
+                    param = cast(*Param_Base) param_event.cookie;
+                } else {
+                    param = params.params[param_event.param_id];
+                }
+
+                param.set_value(param, param_event.value);
+            }
+
+            // process other clap events...
 
             (<<current_event_index) += 1;
             if (<<current_event_index) < num_events {
@@ -218,11 +233,11 @@ plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_pro
             
             // process the events in this sub-block
             while (next_event_time < n + num_samples_to_process && current_event_index < num_events) {
-                process_event(events, *current_event_index, *next_event_time, num_events, num_samples, n);
+                process_event(events, *current_event_index, *next_event_time, num_events, num_samples, n, *params.param_holder);
             }
 
-            process_context := create_process_context(process.audio_inputs, process.audio_outputs, num_samples_to_process, n);
-            process_audio(self, *process_context);
+            process_buffers := create_process_buffers(process.audio_inputs, process.audio_outputs, num_samples_to_process, n);
+            audio_processor.process_audio(*audio_processor, *process_buffers);
 
             // add output events to out-going queue...
 
@@ -231,37 +246,34 @@ plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_pro
 
         // process any leftover events
         while current_event_index < num_events {
-            process_event(events, *current_event_index, *next_event_time, num_events, num_samples, num_samples);
+            process_event(events, *current_event_index, *next_event_time, num_events, num_samples, num_samples, *params.param_holder);
         }
 
         return .CLAP_PROCESS_CONTINUE;
     }
-    */
-    return .CLAP_PROCESS_CONTINUE;
 }
 
 plugin_get_extension :: (plugin: *clap_plugin_t, id: *char) -> *void #c_call {
-    /*
-    self := plugin_from_self(plugin);
-    push_context self.host_jai_context {
+    using self := from_raw_clap_plugin(plugin);
+    push_context plugin_context {
         id_cstr: string;
         id_cstr.data = id;
         id_cstr.count = c_style_strlen(id) + 1;
         id_str := to_string(id);
         log("Host queried for plugin extension %\n", id_str);
         
-        if (id_cstr == CLAP_EXT_PARAMS) {
+        if (id_cstr == CLAP_EXT_PARAMS && clap_params_ext != null) {
             log("Plugin extension %: FOUND!", id_str);
-            return *self.params_ext;
-        } else if (id_cstr == CLAP_EXT_AUDIO_PORTS) {
+            return *clap_params_ext.clap_ext;
+        } else if (id_cstr == CLAP_EXT_AUDIO_PORTS && clap_audio_ports_ext != null) {
             log("Plugin extension %: FOUND!", id_str);
-            return *self.audio_ports_ext;
+            return *clap_audio_ports_ext.clap_ext;
         }
         
         log("Plugin extension %: NOT FOUND!", id_str);
+
+        return null;
     }
-    */
-    return null;
 }
 
 plugin_on_main_thread :: (plugin: *clap_plugin_t) -> void #c_call {
