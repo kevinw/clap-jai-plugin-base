@@ -1,3 +1,6 @@
+Math :: #import "Math";
+String :: #import "String";
+
 Param_Base :: struct {
     #as using clap_param_info: clap_param_info_t;   
 
@@ -30,14 +33,58 @@ register_param :: (using plugin_params: Params, new_param: *Param_Base) {
 }
 
 //===============================================================
+Normalisable_Range :: struct ($T: Type) {
+    start: T;
+    end: T;
+    skew: T;
+}
+
+init_range :: (using range: *Normalisable_Range($T), _start: T, _end: T, _centre: T) {
+    start = _start;
+    end = _end;
+    set_skew_value(range, _centre);
+}
+
+set_skew_value :: (using range: *Normalisable_Range($T), centre: T) {
+    skew = Math.log(cast(T) 0.5) / Math.log((centre - start) / (end - start));
+}
+
+convert_to :: (using range: *Normalisable_Range($T), value: T) -> T {
+    proportion := (value - start) / (end - start);
+    Math.Clamp(*proportion, 0.0, 1.0);
+
+    if (skew == cast(T) 1) {
+        return proportion;
+    }
+
+    return Math.pow(proportion, skew);
+}
+
+convert_from :: (using range: *Normalisable_Range($T), proportion: T) -> T {
+    Math.Clamp(*proportion, 0.0, 1.0);
+
+    if (skew != cast(T) 1 && proportion > cast(T) 0) {
+        proportion = Math.exp(Math.log(proportion) / skew);
+    }
+
+    return start + (end - start) * proportion;
+}
+
 Float_Parameter :: struct {
     #as using base_param: Param_Base;
-    // TODO: some sort of normalisable range...
+    
+    range: Normalisable_Range(float64);
     current_value: float64;
     modulation_amount: float64 = 0.0;
 }
 
-init_param :: (using param: *Float_Parameter, param_name: string, param_module: string = "") {
+init_param :: (using param: *Float_Parameter,
+               param_name: string,
+               min_val: float64,
+               max_val: float64,
+               centre_val: float64,
+               default_val: float64,
+               param_module: string = "") {
     cookie = *base_param;
     
     flags |= .CLAP_PARAM_IS_AUTOMATABLE;
@@ -48,8 +95,9 @@ init_param :: (using param: *Float_Parameter, param_name: string, param_module: 
 
     min_value = 0.0;
     max_value = 1.0;
-    default_value = 0.5;
-    current_value = default_value;
+    init_range(*range, min_val, max_val, centre_val);
+    default_value = convert_to(*range, default_val);
+    current_value = default_val;
 
     get_value = float_param_get_value;
     set_value = float_param_set_value;
@@ -57,20 +105,72 @@ init_param :: (using param: *Float_Parameter, param_name: string, param_module: 
     value_to_text = float_param_value_to_text;
 }
 
-float_param_get_value :: (param: *Param_Base) -> float64 {
-    return (cast(*Float_Parameter) param).current_value;
+float_param_get_value :: (param_base: *Param_Base) -> float64 {
+    using param := cast(*Float_Parameter) param_base;
+    return convert_from(*range, current_value);
 }
 
-float_param_set_value :: (param: *Param_Base, value: float64) {
-    (cast (*Float_Parameter) param).current_value = value;
+float_param_set_value :: (param_base: *Param_Base, value: float64) {
+    using param := cast(*Float_Parameter) param_base;
+    current_value = convert_to(*range, value);
 }
 
-float_param_text_to_value :: (param: *Param_Base, text: string) -> float64 {
-    return string_to_float64(text);
+float_param_text_to_value :: (param_base: *Param_Base, text: string) -> float64 {
+    using param := cast(*Float_Parameter) param_base;
+    return convert_to(*range, string_to_float64(text));
 }
 
-float_param_value_to_text :: (param: *Param_Base, value: float64) -> string {
-    return tprint("%", value);
+float_param_value_to_text :: (param_base: *Param_Base, value: float64) -> string {
+    using param := cast(*Float_Parameter) param_base;
+    return tprint("%", convert_from(*range, value));
+}
+
+//===============================================================
+// Just like a Float_Parameter, except the text<->value conversions are in units of Hz/kHz
+Frequency_Parameter :: struct {
+    #as using base: Float_Parameter;
+}
+
+init_param :: (using param: *Frequency_Parameter,
+               param_name: string,
+               min_val: float64,
+               max_val: float64,
+               centre_val: float64,
+               default_val: float64,
+               param_module: string = "") {
+    init_param(cast(*Float_Parameter) param, param_name, min_val, max_val, centre_val, default_val, param_module);
+    text_to_value = freq_param_text_to_value;
+    value_to_text = freq_param_value_to_text;
+}
+
+freq_param_text_to_value :: (param_base: *Param_Base, text: string) -> float64 {
+    using param := cast(*Float_Parameter) param_base;
+
+    is_khz := String.contains(text, "k");
+    text_trim := String.trim_left(text, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ; ");
+    text_trim = String.trim_right(text_trim, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ; ");
+
+    if text_trim.count == 0 {
+        return default_value;
+    }
+
+    unnormed_value := string_to_float64(text_trim);
+    if is_khz {
+        unnormed_value *= 1000.0;
+    }
+    return convert_to(*range, unnormed_value);
+}
+
+freq_param_value_to_text :: (param_base: *Param_Base, value: float64) -> string {
+    using param := cast(*Float_Parameter) param_base;
+    unnormed_value := convert_from(*range, value);
+    suffix := ifx unnormed_value >= 1000.0 {
+        unnormed_value /= 1000.0;
+        "kHz";
+    } else {
+        "Hz";
+    }
+    return tprint("% %", formatFloat(unnormed_value, trailing_width=2, zero_removal=.NO), suffix);
 }
 
 //===============================================================

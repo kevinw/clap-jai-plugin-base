@@ -6,7 +6,7 @@ Audio_Ports :: struct {
 }
 
 clap_audio_ports_count :: (plugin: *clap_plugin_t, is_input: bool) -> u32 #c_call {
-    return 1; // @TODO
+    return 1;
 }
 
 clap_audio_ports_get :: (plugin: *clap_plugin_t, index: u32, is_input: bool, info: *clap_audio_port_info_t) -> bool #c_call {

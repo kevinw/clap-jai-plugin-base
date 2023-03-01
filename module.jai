@@ -12,3 +12,4 @@ plugin_descriptor_getter :: #type (factory: *clap_plugin_factory_t, idx: u32) ->
 #load "host_proxy.jai";
 #load "params.jai";
 #load "plugin_base.jai";
+#load "plugin_process.jai";
