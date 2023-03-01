@@ -23,6 +23,7 @@ Plugin_Base :: struct {
     // extension interfaces...
     clap_audio_ports_ext: *Audio_Ports = null;
     clap_params_ext: *Params = null;
+    clap_state_ext: *Plugin_State = null;
 }
 
 from_raw_clap_plugin :: (plugin: *clap_plugin_t) -> *Plugin_Type #c_call {
@@ -135,17 +136,22 @@ plugin_get_extension :: (plugin: *clap_plugin_t, id: *char) -> *void #c_call {
         id_cstr.count = c_style_strlen(id) + 1;
         id_str := to_string(id);
         log("Host queried for plugin extension %\n", id_str);
-        
-        if (id_cstr == CLAP_EXT_PARAMS && clap_params_ext != null) {
-            log("Plugin extension %: FOUND!", id_str);
-            return *clap_params_ext.clap_ext;
-        } else if (id_cstr == CLAP_EXT_AUDIO_PORTS && clap_audio_ports_ext != null) {
-            log("Plugin extension %: FOUND!", id_str);
-            return *clap_audio_ports_ext.clap_ext;
+
+        ext_found := true;
+        defer {
+            found_or_not := ifx ext_found then "FOUND" else "NOT FOUND";
+            log("Plugin extension %: %!", id_str, found_or_not);
         }
         
-        log("Plugin extension %: NOT FOUND!", id_str);
-
+        if (id_cstr == CLAP_EXT_PARAMS && clap_params_ext != null) {
+            return *clap_params_ext.clap_ext;
+        } else if (id_cstr == CLAP_EXT_AUDIO_PORTS && clap_audio_ports_ext != null) {
+            return *clap_audio_ports_ext.clap_ext;
+        } else if (id_cstr == CLAP_EXT_STATE && clap_state_ext != null) {
+            return *clap_state_ext.clap_ext;
+        }
+        
+        ext_found = false;
         return null;
     }
 }
