@@ -27,7 +27,7 @@ Params :: struct {
     };
 }
 
-register_param :: (using plugin_params: Params, new_param: *Param_Base) {
+register_param :: (using plugin_params: *Params, new_param: *Param_Base) {
     new_param.id = cast(u32) params.count;
     array_add(*params, new_param);
 }
@@ -107,12 +107,12 @@ init_param :: (using param: *Float_Parameter,
 
 float_param_get_value :: (param_base: *Param_Base) -> float64 {
     using param := cast(*Float_Parameter) param_base;
-    return convert_from(*range, current_value);
+    return convert_to(*range, current_value);
 }
 
 float_param_set_value :: (param_base: *Param_Base, value: float64) {
     using param := cast(*Float_Parameter) param_base;
-    current_value = convert_to(*range, value);
+    current_value = convert_from(*range, value);
 }
 
 float_param_text_to_value :: (param_base: *Param_Base, text: string) -> float64 {

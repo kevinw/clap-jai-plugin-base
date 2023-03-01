@@ -56,7 +56,6 @@ plugin_init :: (plugin: *clap_plugin_t) -> bool #c_call {
     plugin_context.allocator = Context_Base.default_allocator;
     plugin_context.print_style = Print_Style.{};
 
-
     push_context plugin_context {
         log("Initializing host proxy!\n");
         host_proxy_init(*host_proxy, true);
