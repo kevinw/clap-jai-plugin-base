@@ -19,6 +19,20 @@ process_event :: (events: *clap_input_events_t,
         }
 
         param.set_value(param, param_event.value);
+    } else if event.type == CLAP_EVENT_PARAM_MOD {
+        param_event := cast(*clap_event_param_mod_t) event;
+	param: *Param_Base;
+	if param_event.cookie != null {
+	    param = cast(*Param_Base) param_event.cookie;
+	} else {
+	    param = params.params[param_event.param_id];
+	}
+
+	if param.set_modulation != null {
+	    param.set_modulation(param, param_event.amount);
+	} else {
+	    // host is misbehaving...
+	}
     }
 
     // process other clap events...

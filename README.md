@@ -6,4 +6,4 @@ Depends on [clap-jai](https://github.com/jatinchowdhury18/clap-jai).
 
 ## LICENSE
 
-TODO...
+Haven't decided yet... probably something permissive.

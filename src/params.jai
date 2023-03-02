@@ -97,22 +97,38 @@ init_param :: (using param: *Float_Parameter,
     max_value = 1.0;
     init_range(*range, min_val, max_val, centre_val);
     default_value = convert_to(*range, default_val);
-    current_value = default_val;
+    current_value = default_value;
 
-    get_value = float_param_get_value;
-    set_value = float_param_set_value;
+    get_value = float_param_get_normalised_value;
+    set_value = float_param_set_normalised_value;
+    set_modulation = float_param_set_modulation;
     text_to_value = float_param_text_to_value;
     value_to_text = float_param_value_to_text;
 }
 
-float_param_get_value :: (param_base: *Param_Base) -> float64 {
-    using param := cast(*Float_Parameter) param_base;
-    return convert_to(*range, current_value);
+param_get_value :: (using param: *Float_Parameter) -> float64 {
+    return convert_from(*range, current_value);
 }
 
-float_param_set_value :: (param_base: *Param_Base, value: float64) {
+param_get_modulated_value :: (using param: *Float_Parameter) -> float64 {
+    modulated_value_01 := current_value + modulation_amount;
+    Math.Clamp(*modulated_value_01, 0.0, 1.0);
+    return convert_from(*range, modulated_value_01);
+}
+
+float_param_get_normalised_value :: (param_base: *Param_Base) -> float64 {
     using param := cast(*Float_Parameter) param_base;
-    current_value = convert_from(*range, value);
+    return current_value;
+}
+
+float_param_set_normalised_value :: (param_base: *Param_Base, value: float64) {
+    using param := cast(*Float_Parameter) param_base;
+    current_value = value;
+}
+
+float_param_set_modulation :: (param_base: *Param_Base, mod_amount: float64) {
+    using param := cast(*Float_Parameter) param_base;
+    modulation_amount = mod_amount;
 }
 
 float_param_text_to_value :: (param_base: *Param_Base, text: string) -> float64 {
