@@ -24,6 +24,7 @@ Plugin_Base :: struct {
     clap_audio_ports_ext: *Audio_Ports = null;
     clap_params_ext: *Params = null;
     clap_state_ext: *Plugin_State = null;
+    clap_gui_ext: *Plugin_Gui = null;
 }
 
 from_raw_clap_plugin :: (plugin: *clap_plugin_t) -> *Plugin_Type #c_call {
@@ -148,6 +149,8 @@ plugin_get_extension :: (plugin: *clap_plugin_t, id: *char) -> *void #c_call {
             return *clap_audio_ports_ext.clap_ext;
         } else if (id_cstr == CLAP_EXT_STATE && clap_state_ext != null) {
             return *clap_state_ext.clap_ext;
+        } else if(id_cstr == CLAP_EXT_GUI && clap_gui_ext != null) {
+            return *clap_gui_ext.clap_ext;
         }
         
         ext_found = false;

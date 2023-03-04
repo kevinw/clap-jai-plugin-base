@@ -9,6 +9,7 @@ plugin_descriptor_getter :: #type (factory: *clap_plugin_factory_t, idx: u32) ->
 #load "src/audio_ports.jai";
 #load "src/audio_processor.jai";
 #load "src/clap_entry.jai";
+#load "src/gui.jai";
 #load "src/host_proxy.jai";
 #load "src/params.jai";
 #load "src/plugin_base.jai";
