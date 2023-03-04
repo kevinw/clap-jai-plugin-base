@@ -1,4 +1,4 @@
-# clap-plugin-base
+# clap-jai-plugin-base
 
 A framework for creating CLAP plugins using the Jai programming language.
 
