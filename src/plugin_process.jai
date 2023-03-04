@@ -1,13 +1,9 @@
 CLAP_PROCESS_EVENTS_RESOLUTION_SAMPLES :: 64; // @TODO: make this configurable
 
-process_event :: (events: *clap_input_events_t,
-                  current_event_index: *u32,
-                  next_event_time: *u32,
-                  num_events: u32,
-                  num_samples: u32,
-                  sample_offset: u32,
-                  params: *Param_Holder) {
-    event := events.get(events, (<<current_event_index));
+// This is a macro for now... I'm not sure that's the right choice,
+// but at least I know how macros work now.
+process_event :: (sample_offset: u32) #expand {
+    event := `events.get(`events, `current_event_index);
 
     if event.type == CLAP_EVENT_PARAM_VALUE {
         param_event := cast(*clap_event_param_value_t) event;
@@ -15,49 +11,45 @@ process_event :: (events: *clap_input_events_t,
         if param_event.cookie != null {
             param = cast(*Param_Base) param_event.cookie;
         } else {
-            param = params.params[param_event.param_id];
+            param = `params.params[param_event.param_id];
         }
 
         param.set_value(param, param_event.value);
     } else if event.type == CLAP_EVENT_PARAM_MOD {
         param_event := cast(*clap_event_param_mod_t) event;
-	param: *Param_Base;
-	if param_event.cookie != null {
-	    param = cast(*Param_Base) param_event.cookie;
-	} else {
-	    param = params.params[param_event.param_id];
-	}
+	    param: *Param_Base;
+	    if param_event.cookie != null {
+	        param = cast(*Param_Base) param_event.cookie;
+	    } else {
+	        param = `params.params[param_event.param_id];
+	    }
 
-	if param.set_modulation != null {
-	    param.set_modulation(param, param_event.amount);
-	} else {
-	    // host is misbehaving...
-	}
+	    if param.set_modulation != null {
+	        param.set_modulation(param, param_event.amount);
+	    } else {
+	        // host is misbehaving...
+	    }
     }
 
     // process other clap events...
 
-    (<<current_event_index) += 1;
-    if (<<current_event_index) < num_events {
-        (<<next_event_time) = events.get(events, (<<current_event_index)).time;
+    `current_event_index += 1;
+    if `current_event_index < `num_events {
+        `next_event_time = `events.get(`events, `current_event_index).time;
     } else {
-        (<<next_event_time) = num_samples;
+        `next_event_time = `num_samples;
     }
 }
 
-get_num_samples_to_process :: (events: *clap_input_events_t,
-                               current_event_index: *u32,
-                               num_events: u32,
-                               n: u32,
-                               num_samples: u32) -> u32 {
-    samples_until_end_of_block := num_samples - n;
-    if num_events == 0 {
+get_num_samples_to_process :: (n: u32) -> u32 #expand {
+    samples_until_end_of_block := `num_samples - n;
+    if `num_events == 0 {
         return samples_until_end_of_block;
     }
 
     samples_until_next_event := samples_until_end_of_block;
-    for event_index: (<<current_event_index)..num_events-1 {
-        event := events.get(events, event_index);
+    for event_index: `current_event_index..`num_events-1 {
+        event := `events.get(`events, event_index);
         if (event.time < n + CLAP_PROCESS_EVENTS_RESOLUTION_SAMPLES) {
             // this event is within the resolution size, so we don't need to split
             continue;
@@ -113,11 +105,11 @@ plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_pro
 
         n : u32 = 0;
         while n < num_samples {
-            num_samples_to_process := get_num_samples_to_process(events, *current_event_index, num_events, n, num_samples);
+            num_samples_to_process := get_num_samples_to_process(n);
             
             // process the events in this sub-block
             while (next_event_time < n + num_samples_to_process && current_event_index < num_events) {
-                process_event(events, *current_event_index, *next_event_time, num_events, num_samples, n, *params.param_holder);
+                process_event(n);
             }
 
             process_buffers := create_process_buffers(process.audio_inputs, process.audio_outputs, num_samples_to_process, n);
@@ -130,7 +122,7 @@ plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_pro
 
         // process any leftover events
         while current_event_index < num_events {
-            process_event(events, *current_event_index, *next_event_time, num_events, num_samples, num_samples, *params.param_holder);
+            process_event(num_samples);
         }
 
         return .CLAP_PROCESS_CONTINUE;
