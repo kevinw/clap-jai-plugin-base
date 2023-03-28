@@ -33,6 +33,54 @@ register_param :: (using plugin_params: *Params, new_param: *Param_Base) {
 }
 
 //===============================================================
+Param_Save_Info :: struct {
+    param_id: clap_id;
+    param_value: float64;
+}
+
+serialize_params :: (using param_holder: *Param_Holder) -> [] u8 #must {
+    serial_buffer : [] u8;
+    serial_buffer.count = size_of(Param_Save_Info) * params.count;
+    serial_buffer.data = alloc(serial_buffer.count, context.allocator);
+    serial_ptr := cast(*Param_Save_Info) serial_buffer.data;
+    memset(serial_buffer.data, 0, serial_buffer.count);
+    
+    info : Param_Save_Info;
+    for param, idx : params {
+        info.param_id = param.id;
+        info.param_value = param.get_value(param);
+        
+        memcpy(serial_ptr + idx, *info, size_of(Param_Save_Info));
+    }
+    
+    return serial_buffer;
+}
+
+deserialize_params :: (using param_holder: *Param_Holder, serial_buffer: [] u8) -> bool {
+    if serial_buffer.count % size_of (Param_Save_Info) != 0 {
+        return false;
+    }
+    
+    serial_ptr := cast(*Param_Save_Info) serial_buffer.data;
+    num_serials := serial_buffer.count / size_of (Param_Save_Info);
+    info : Param_Save_Info;
+    for idx : 0..num_serials-1 {
+        memcpy(*info, serial_ptr + idx, size_of(Param_Save_Info));
+        
+        for param, idx : params {
+            if param.id == info.param_id {
+                param.set_value(param, info.param_value);
+                break;
+            }
+        }
+    }
+    
+    // TODO: if a param is not set, we should reset it to it's default state!
+
+    return true;
+}
+
+//===============================================================
 Normalisable_Range :: struct ($T: Type) {
     start: T;
     end: T;
