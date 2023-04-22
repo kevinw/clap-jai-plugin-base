@@ -89,8 +89,7 @@ plugin_activate :: (plugin: *clap_plugin_t, sample_rate: float64, min_frames_cou
         if audio_processor.audio_thread_storage_data.count == 0 {
             audio_thread_storage_bytes := 20 * max_frames_count;
             array_resize(*audio_processor.audio_thread_storage_data, audio_thread_storage_bytes);
-            audio_processor.audio_thread_storage.data = audio_processor.audio_thread_storage_data.data;
-            audio_processor.audio_thread_storage.size = audio_thread_storage_bytes;
+            set_initial_data(*audio_processor.audio_thread_storage, audio_thread_storage_bytes, audio_processor.audio_thread_storage_data.data);
         }
     }
 
