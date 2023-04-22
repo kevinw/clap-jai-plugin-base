@@ -85,6 +85,13 @@ plugin_activate :: (plugin: *clap_plugin_t, sample_rate: float64, min_frames_cou
     push_context plugin_context {
         log("Activating plugin with sample rate %, and max block size %\n", sample_rate, max_frames_count);
         activate(self, sample_rate, max_frames_count);
+
+        if audio_processor.audio_thread_storage_data.count == 0 {
+            audio_thread_storage_bytes := 20 * max_frames_count;
+            array_resize(*audio_processor.audio_thread_storage_data, audio_thread_storage_bytes);
+            audio_processor.audio_thread_storage.data = audio_processor.audio_thread_storage_data.data;
+            audio_processor.audio_thread_storage.size = audio_thread_storage_bytes;
+        }
     }
 
     return true;
@@ -95,6 +102,10 @@ plugin_deactivate :: (plugin: *clap_plugin_t) -> void #c_call {
     push_context plugin_context {
         if deactivate != null {
             deactivate(self);
+        }
+
+        if audio_processor.audio_thread_storage_data.data != null {
+            array_free(audio_processor.audio_thread_storage_data);
         }
     }
 }

@@ -84,9 +84,15 @@ get_num_samples_to_process :: (n: u32) -> u32 #expand {
 }
 
 plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_process_status #c_call {
+    
     using self := from_raw_clap_plugin(plugin);
-    push_context audio_thread_ctx.ctx {
-        context.allocator = temp;
+
+    realtime_context : Context;
+    realtime_context.temporary_storage = *audio_processor.audio_thread_storage;
+    realtime_context.allocator = temp;
+
+    push_context realtime_context {
+        defer reset_temporary_storage();
 
         {
             out_events := process.out_events;
