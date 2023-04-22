@@ -12,7 +12,7 @@ Plugin_Base :: struct {
     // implementing struct should override these where appropriate
     initialize_plugin: (plugin: *Plugin_Type); // REQUIRED
     deinitialize_plugin: (plugin: *Plugin_Type) = null;
-    activate: (plugin: *Plugin_Type, sample_rate: float64, max_frames_count: u32); // REQUIRED
+    activate: (plugin: *Plugin_Type, sample_rate: float64, max_frames_count: u32) -> s64; // REQUIRED, should return the size to use for audio thread temp storage
     deactivate: (plugin: *Plugin_Type) = null;
     start_processing: (plugin: *Plugin_Type) -> bool = null;
     stop_processing: (plugin: *Plugin_Type) = null;
@@ -84,13 +84,12 @@ plugin_activate :: (plugin: *clap_plugin_t, sample_rate: float64, min_frames_cou
     using self := from_raw_clap_plugin(plugin);
     push_context plugin_context {
         log("Activating plugin with sample rate %, and max block size %\n", sample_rate, max_frames_count);
-        activate(self, sample_rate, max_frames_count);
+        audio_thread_storage_bytes := activate(self, sample_rate, max_frames_count);
 
-        if audio_processor.audio_thread_storage_data.count == 0 {
-            audio_thread_storage_bytes := 20 * max_frames_count;
-            array_resize(*audio_processor.audio_thread_storage_data, audio_thread_storage_bytes);
-            set_initial_data(*audio_processor.audio_thread_storage, audio_thread_storage_bytes, audio_processor.audio_thread_storage_data.data);
-        }
+        array_resize(*audio_processor.audio_thread_storage_data, audio_thread_storage_bytes);
+        set_initial_data(*audio_processor.audio_thread_storage,
+                         audio_thread_storage_bytes,
+                         audio_processor.audio_thread_storage_data.data);
     }
 
     return true;
@@ -103,9 +102,7 @@ plugin_deactivate :: (plugin: *clap_plugin_t) -> void #c_call {
             deactivate(self);
         }
 
-        if audio_processor.audio_thread_storage_data.data != null {
-            array_free(audio_processor.audio_thread_storage_data);
-        }
+        array_free(audio_processor.audio_thread_storage_data);
     }
 }
 
