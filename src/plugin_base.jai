@@ -31,11 +31,14 @@ from_raw_clap_plugin :: (plugin: *clap_plugin_t) -> *Plugin_Type #c_call {
     return cast(*Plugin_Type) plugin.plugin_data;
 }
 
-plugin_base_init :: (using plugin: *Plugin_Type, factory: *clap_plugin_factory_t, host: *clap_host_t) {
+plugin_base_init :: (using plugin: *Plugin_Type,
+                     factory: *clap_plugin_factory_t,
+                     host: *clap_host_t,
+                     descriptor: *clap_plugin_descriptor_t) {
     host_proxy.host = host;
     plugin_internal = plugin;
 
-    clap_plugin.desc = PLUGIN_DESCRIPTOR_GETTER(factory, 0);
+    clap_plugin.desc = descriptor;
     clap_plugin.plugin_data = plugin;
     clap_plugin.init = plugin_init;
     clap_plugin.destroy = plugin_destroy;
