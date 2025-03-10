@@ -87,7 +87,7 @@ plugin_process :: (plugin: *clap_plugin_t, process: *clap_process_t) -> clap_pro
     
     using self := from_raw_clap_plugin(plugin);
 
-    realtime_context : Context;
+    realtime_context : #Context;
     realtime_context.temporary_storage = *audio_processor.audio_thread_storage;
     realtime_context.allocator = temp;
 

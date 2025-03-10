@@ -41,7 +41,7 @@ Param_Save_Info :: struct {
 serialize_params :: (using param_holder: *Param_Holder) -> [] u8 #must {
     serial_buffer : [] u8;
     serial_buffer.count = size_of(Param_Save_Info) * params.count;
-    serial_buffer.data = alloc(serial_buffer.count, context.allocator);
+    serial_buffer.data = alloc(serial_buffer.count);
     serial_ptr := cast(*Param_Save_Info) serial_buffer.data;
     memset(serial_buffer.data, 0, serial_buffer.count);
     

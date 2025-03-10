@@ -4,7 +4,7 @@
 Host_Proxy :: struct {
     host: *clap_host_t;
 
-    host_jai_context: Context;
+    host_jai_context: #Context;
 
     host_log: *clap_host_log_t;
     thread_check: *clap_host_thread_check_t;

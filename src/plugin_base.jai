@@ -7,7 +7,7 @@ Plugin_Base :: struct {
     plugin_internal: *Plugin_Type;
 
     // context to use for non-audio thread stuff
-    plugin_context: *Context;
+    plugin_context: *#Context;
 
     // implementing struct should override these where appropriate
     initialize_plugin: (plugin: *Plugin_Type); // REQUIRED
@@ -56,7 +56,7 @@ plugin_init :: (plugin: *clap_plugin_t) -> bool #c_call {
     using self := from_raw_clap_plugin(plugin);
 
     plugin_context = *host_proxy.host_jai_context;
-    plugin_context.logger = Context_Base.default_logger;
+    plugin_context.logger = #Context.{}.logger;
     plugin_context.allocator = Context_Base.default_allocator;
     plugin_context.print_style = Print_Style.{};
 
